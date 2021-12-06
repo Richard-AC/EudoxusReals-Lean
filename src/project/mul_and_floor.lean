@@ -36,7 +36,7 @@ lemma mul_and_floor_le (r : ℝ) (n : ℤ) :
 lemma almost_hom_maf.aux1 (r : ℝ) (n m : ℤ) :
   ((mul_and_floor r n) + (mul_and_floor r m) - (mul_and_floor r (n + m))) ≤ 1 :=
   begin
-    have hrnm : r*(n+m) ≤ mul_and_floor r (n+m) + 1 := 
+    have hrnm : r* (n+m) ≤ mul_and_floor r (n+m) + 1 := 
       begin
         rw mul_and_floor,
         norm_num,
@@ -73,13 +73,19 @@ lemma almost_hom_maf.aux1 (r : ℝ) (n m : ℤ) :
 lemma almost_hom_maf.aux2 (r : ℝ) (n m : ℤ) :
   ((mul_and_floor r n) + (mul_and_floor r m) - (mul_and_floor r (n + m))) ≥ -2 :=
   begin
-    simp,
-    calc ((mul_and_floor r n) + (mul_and_floor r m) - (mul_and_floor r (n + m))) 
-          > (r * n - 1) + (r * m - 1) - (mul_and_floor r (n + m)) : _ 
-      ... ≥ (r * n - 1) + (r * m - 1) - r (n + m) : _
-      ... = - 2 : _,
 
-
+    apply iff.elim_left (@int.cast_le ℝ _ _ _ _), -- cast this into the reals 
+    apply ge.le,
+    calc ↑(mul_and_floor r n + mul_and_floor r m - mul_and_floor r (n + m)) 
+          ≥ (r * n - 1) + (r * m - 1) - (mul_and_floor r (n + m)) : _ 
+      ... ≥ (r * n - 1) + (r * m - 1) - r * (n + m) : _
+      ... = ↑ -2 : _,
+    {sorry},
+    {sorry},
+    {
+      simp,
+      linarith,
+    }
   end
 
 -- #check set.finite_Icc, 
