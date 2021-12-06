@@ -509,29 +509,71 @@ lemma lemma8 (f : almost_homs) :
           have haux1 : ∀ m n : ℤ, abs(f.func(g.func m + g.func n) 
               - f.func (g.func m) - f.func (g.func n)) < Cf :=
               begin
-                sorry,
+                intros m n,
+                apply (hCf (g.func n) (g.func m)),
               end,
 
           have haux2 : ∀ m n : ℤ, abs(f.func(g.func (m + n)) 
               - f.func (g.func (m + n) - g.func m - g.func n) 
               - f.func (g.func m + g.func n)) < Cf :=
               begin
-                sorry,
+                intros m n,
+                let h := (hCf (g.func m + g.func n) (g.func(m + n) - g.func m - g.func n)),
+                simp at *,
+                apply h,
               end,
 
           have haux3 : ∃ C, ∀ m n : ℤ, 
           abs(f.func(g.func (m + n) - g.func m - g.func n)) < C :=
           begin
-            sorry,
+            let sg := {x | ∃ m n : ℤ, x = g.func(n + m) - g.func(n) - g.func(m)},
+            have hsg_fin : sg.finite := g.almost_hom,
+            let sfg := {x | ∃ y ∈ sg, x = (f.func y)},
+            have hfabs_fin : set.finite sfg :=
+              by exact set.finite.dependent_image hsg_fin (λ (x : ℤ) (hx : x ∈ sg), (f.func x)),
+            cases' (finset_exists_bound sfg _ hfabs_fin),
+            {
+              apply exists.intro ((abs w) + 1),
+              intros m n,
+              have haux1 : (g.func (m + n) - g.func m - g.func n) ∈ sg := 
+              begin
+                simp,
+                apply exists.intro n,
+                apply exists.intro m,
+                refl,
+              end,
+              have haux2 : (f.func(g.func (m + n) - g.func m - g.func n)) ∈ sfg :=
+              begin
+                simp,
+                apply exists.intro (g.func (m + n) - g.func m - g.func n),
+                apply and.intro,
+                apply exists.intro n,
+                apply exists.intro m,
+                refl,
+                refl,
+              end, 
+              cases' h with w hw,
+              have haux3 : abs w < abs w + 1 := 
+                by exact lt_add_one (abs w),
+              exact lt_of_le_of_lt (hw (f.func (g.func (m + n) - g.func m - g.func n)) haux2) haux3,
+            },
+            {
+              simp [set.nonempty_def],
+              apply exists.intro (f.func(- g.func 0)),
+              apply exists.intro (- g.func 0),
+              apply and.intro,
+              apply exists.intro (int.of_nat 0),
+              apply exists.intro (int.of_nat 0),
+              simp,
+            },
           end, 
 
           have haux4 : 
           ∀ m n : ℤ, 
           f.func(g.func (m + n)) - f.func (g.func m) - f.func (g.func n) =
           f.func(g.func m + g.func n) - f.func (g.func m) - f.func (g.func n)
-          + f.func(g.func (m + n)) - f.func (g.func (m + n) - g.func m - g.func n) 
-          - f.func (g.func m + g.func n) 
-          + f.func(g.func (m + n) - g.func m - g.func n) :=
+          + (f.func(g.func (m + n)) - f.func (g.func (m + n) - g.func m - g.func n) - f.func (g.func m + g.func n))
+          + (f.func(g.func (m + n) - g.func m - g.func n)) :=
           by intros m n; linarith,
 
           cases' haux3 with C,
@@ -541,7 +583,21 @@ lemma lemma8 (f : almost_homs) :
           abs (f.func(g.func (m + n)) - f.func (g.func m) - f.func (g.func n)) < 2*Cf + C 
           := 
           begin
-            sorry,
+            intros m n,
+            calc abs (f.func(g.func (m + n)) - f.func (g.func m) - f.func (g.func n))
+            = abs (f.func(g.func m + g.func n) - f.func (g.func m) - f.func (g.func n)
+              + (f.func(g.func (m + n)) - f.func (g.func (m + n) - g.func m - g.func n) - f.func (g.func m + g.func n))
+              + (f.func(g.func (m + n) - g.func m - g.func n))) : by simp [haux4]
+            ... ≤ abs (f.func(g.func m + g.func n) - f.func (g.func m) - f.func (g.func n))
+              + abs(f.func(g.func (m + n)) - f.func (g.func (m + n) - g.func m - g.func n) - f.func (g.func m + g.func n)) 
+              + abs(f.func(g.func (m + n) - g.func m - g.func n)) : _
+            ... < Cf + Cf + C : by exact add_lt_add (add_lt_add (haux1 m n) (haux2 m n)) (h m n)
+            ... = 2 * Cf + C : by linarith,
+            {
+              exact abs_add_three (f.func (g.func m + g.func n) - f.func (g.func m) - f.func (g.func n))
+              (f.func (g.func (m + n)) - f.func (g.func (m + n) - g.func m - g.func n) - f.func (g.func m + g.func n))
+              (f.func (g.func (m + n) - g.func m - g.func n)),
+            },
           end,
         
           apply exists.intro (2*Cf + C),
