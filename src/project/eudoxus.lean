@@ -1,7 +1,6 @@
 import ..lovelib
 
-/-! # Project : Eudoxus Reals
--/
+/-! # Project : Eudoxus Reals -/
 
 set_option pp.beta true
 set_option pp.generalized_field_notation false
@@ -16,8 +15,6 @@ structure almost_homs :=
 (almost_hom   : almost_hom func)
 
 namespace almost_homomorphisms
-
--- Almost homomorphisms form an abelian group
 
 @[instance] def setoid : setoid almost_homs :=
 { r     := λf g : almost_homs, {x | ∃ n : ℤ, x = f.func(n) - g.func(n) }.finite,
@@ -89,6 +86,10 @@ by refl
     } 
 }
 
+@[simp] lemma zero_func :
+  (0 : almost_homs).func = λn, 0 :=
+  by refl
+
 @[instance] def has_neg : has_neg almost_homs :=
 { neg := λ f : almost_homs,   
     { func           := - f.func,
@@ -118,6 +119,17 @@ by refl
         end,
     } 
 }
+
+@[instance] def has_one : has_one almost_homs :=
+{ one := 
+    { func:= λ n, n,
+      almost_hom         := by simp [almost_hom],
+    } 
+}
+
+@[simp] lemma one_func :
+  (1 : almost_homs).func = λn, n :=
+  by refl
 
 -- # Addition
 
@@ -211,6 +223,9 @@ lemma add_equiv_add {f f' g g' : almost_homs}
   apply set.finite.subset himfin hsub,
   end
 
+lemma zero_add {f : almost_homs} :
+  0 + f ≈ f :=
+  by simp [setoid_iff]
 
 -- @[instance] def almost_homs.add_group : add_group almost_homs :=
 
@@ -251,11 +266,54 @@ lemma finset_exists_bound (s : set ℤ )
     exact set.exists_max_image s (λ (b : ℤ), abs(b)) hfin hnonempty,
   end
 
+lemma finset_exists_stict_bound (s : set ℤ ) 
+  (hnonempty : set.nonempty s) :
+  s.finite → ∃ C : ℤ, ∀ x ∈ s, abs(x) < C :=
+  begin 
+    intro hfin,
+    cases' (finset_exists_bound s hnonempty hfin),
+    cases' h with hw,
+    apply exists.intro (abs w + 1),
+    have haux1 : abs w < abs w + 1 := lt_add_one (abs w),
+    intros x hx,
+    specialize h x hx,
+    exact lt_of_le_of_lt h haux1,
+  end
+
+lemma int_interval_is_finite (M : ℤ):
+M ≥ 0 → set.finite ({x | x < M ∧ -M < -x}):=
+  begin
+    intro hM,
+    sorry,
+  end
+
 lemma bounded_intset_is_finite (s : set ℤ) :
   (∃ M : ℤ, ∀ x ∈ s, abs(x) < M) → s.finite :=
   begin
     intro hbounded,
-    sorry,
+    cases' hbounded with M1,
+    let M := abs M1,
+    have haux1 : M1 ≤ M :=
+      by exact le_abs_self M1,
+
+    have haux2 : ∀ (x : ℤ), x ∈ s → abs x < M := 
+    begin
+      intros x hx,
+      exact gt_of_ge_of_gt haux1 (h x hx),
+    end,
+
+    have haux3 : s ⊆ {x | x < M ∧ -M < -x} :=
+    begin
+      simp [set.subset_def],
+      intros x hx,
+      specialize h x hx,
+      exact lt_of_abs_lt (haux2 x hx),
+    end,
+
+    have haux4 : M ≥ 0 :=
+      by exact abs_nonneg M1,
+
+    apply (set.finite.subset (int_interval_is_finite M haux4) haux3),
   end
 
 lemma hbounded_error (f : almost_homs) : 
@@ -406,11 +464,81 @@ abs (m * (f.func n) - n * (f.func m)) < (abs m + abs n + 2) * C :=
         },
     end,
 
-    -- m ≥ 0 
+    -- m ≤ 0 
     have haux_m_neg : ∀ m : ℕ, ∀ n : ℤ, 
     abs (f.func (-[1+ m] * n) - -[1+ m] * f.func n) < (abs -[1+ m] + 1) * C := 
     begin
-      sorry,
+      intro m,
+      induction m,
+      {
+        intro n,
+        have hsimp0 : -[1+0] = -1 :=
+          by exact rfl,
+        
+        simp [hsimp0],
+
+        have hsimp1 : f.func (-n) + f.func n 
+        = (f.func (-n) + f.func n - f.func(n - n)) + f.func 0 :=
+          by simp,
+
+        calc abs (f.func (-n) + f.func n)
+        = abs(f.func (-n) + f.func n - f.func(n - n) + f.func 0) : by simp
+        ... ≤ abs (f.func (-n) + f.func n - f.func(n - n)) + abs (f.func 0) : _
+        ... < C + C : _
+        ... = (1 + 1) * C : by linarith,
+        {
+          exact abs_add (f.func (-n) + f.func n - f.func (n - n)) (f.func 0),
+        },
+        {
+          have haux1 : abs (f.func (-n) + f.func n - f.func (n - n)) < C :=
+          begin
+            have hmember : (f.func (n-n) - f.func(-n) - f.func n) ∈ s_hom_err :=
+              begin
+                simp,
+                apply exists.intro n,
+                apply exists.intro (-n),
+                simp,
+              end,
+            have haux1_1 : abs((f.func (n-n) - f.func(-n) - f.func n)) < C :=
+              by exact h (f.func (n - n) - f.func (-n) - f.func n) hmember,
+            
+            have hsimp: abs (f.func (n-n) - f.func (-n) - f.func n) 
+            = abs (f.func (-n) + f.func n - f.func (n - n)) :=
+            begin
+              have hsimp_simp : (f.func (n-n) - f.func (-n) - f.func n) 
+              = - (f.func (-n) + f.func n - f.func (n - n)) :=
+                by linarith,
+              rw hsimp_simp,
+              exact abs_neg (f.func (-n) + f.func n - f.func (n - n)),
+            end,
+            rw hsimp at haux1_1,
+            exact haux1_1,
+          end,
+          have haux2 : abs(f.func 0) < C :=
+          begin
+            have hmem : f.func 0 - f.func 0 - f.func 0 ∈ s_hom_err := 
+            begin
+              simp,
+              apply exists.intro (int.of_nat 0),
+              apply exists.intro (int.of_nat 0),
+              simp,
+            end,
+
+            have hsimp1 : abs(f.func 0) = abs (- f.func 0) :=
+              by simp [abs_neg (f.func 0)],
+            have hsimp2 : -f.func 0 = f.func 0 - f.func 0 - f.func 0 := 
+            by linarith,
+            rw hsimp1,
+            rw hsimp2,
+            exact h (f.func 0 - f.func 0 - f.func 0) hmem,
+          end,
+          exact add_lt_add haux1 haux2,
+        },
+      },
+      {
+        sorry,
+      },
+
     end,
 
     -- m : ℤ 
@@ -438,7 +566,6 @@ abs (m * (f.func n) - n * (f.func m)) < (abs m + abs n + 2) * C :=
         rw hsimp2,
         exact haux n m,
       end,
-    --apply add_lt_add h1 h2,
     calc abs (m * f.func n - n * f.func m)
       = abs (f.func (m * n) - m * f.func n + n * f.func m - f.func (m * n)) : _
       ... ≤ abs (f.func (m * n) - m * f.func n) + abs (n * f.func m - f.func (m * n)) : _
@@ -614,12 +741,121 @@ lemma lemma8 (f : almost_homs) :
   (f * g).func = f.func ∘ g.func :=
   by refl
 
+lemma one_mul {f : almost_homs} :
+  1 * f ≈ f :=
+  by simp [setoid_iff]
+
 lemma mul_equiv_mul {f f' g g' : almost_homs} 
-(hf : f ≈ f') (hg : g ≈ g') :
+(hff' : f ≈ f') (hgg' : g ≈ g') :
   f * g ≈ f' * g' :=
   begin
     simp [setoid_iff] at *,
-    sorry,
+    apply bounded_intset_is_finite,
+    set sff' := {x : ℤ | ∃ (n : ℤ), x = f.func n - f'.func n} with sff'_def,
+    set sgg' := {x : ℤ | ∃ (n : ℤ), x = g.func n - g'.func n} with sgg'_def,
+
+    have hnonemptyf : set.nonempty sff' := 
+    begin
+      simp [set.nonempty_def],
+      apply exists.intro  (f.func 0 - f'.func 0),
+      apply exists.intro (int.of_nat 0),
+      simp,
+    end,
+    have hnonemptyg : set.nonempty sgg' := 
+    begin
+      simp [set.nonempty_def],
+      apply exists.intro  (g.func 0 - g'.func 0),
+      apply exists.intro (int.of_nat 0),
+      simp,
+    end,
+    cases' (finset_exists_stict_bound sff' hnonemptyf hff') with Cff' hCff',
+    cases' (finset_exists_stict_bound sgg' hnonemptyg hgg') with Cgg' hCgg',
+    
+    have haux1 : ∀ n : ℤ, 
+    abs (f.func (g.func n) - f'.func (g.func n)) < Cff' :=
+    begin
+      intro n,
+      have hmember : f.func (g.func n) - f'.func (g.func n) ∈ sff' :=
+      begin
+        simp,
+        apply exists.intro (g.func n),
+        refl,
+      end, 
+      apply (hCff' (f.func (g.func n) - f'.func (g.func n)) hmember),
+    end,
+
+    let sf' := {x | ∃ m n : ℤ, x = f'.func(n + m) - f'.func(n) - f'.func(m)},
+    have hsg_fin : sf'.finite := f'.almost_hom,
+    cases' (hbounded_error f') with Cf' hCf',
+
+    have haux2 : ∀ n : ℤ,
+    abs (f'.func(g.func n) - f'.func(g.func n - g'.func n) - f'.func (g'.func n)) < Cf' :=
+    begin
+      intro n,
+      have hsimp : f'.func (g.func n) = f'.func(g.func n - g'.func n + g'.func n) := by simp,
+      rw hsimp,
+      apply (hCf' (g'.func n) (g.func n - g'.func n)),
+    end,
+
+    have haux3 : ∃ C : ℤ, ∀ n : ℤ, 
+    abs (f'.func (g.func n - g'.func n)) < C :=
+    begin
+      set sf'g := {x | ∃ y ∈ sgg', x = f'.func y} with sf'g_def,
+      have hfin : set.finite sf'g :=
+        by exact set.finite.dependent_image hgg' (λ (x : ℤ) (hx : x ∈ sgg'), f'.func x),
+      have hnonempty : set.nonempty sf'g :=
+      begin
+        simp [set.nonempty_def],
+        apply exists.intro (f'.func (g.func 0 - g'.func 0)),
+        apply exists.intro ((g.func 0 - g'.func 0)),
+        apply and.intro,
+        apply exists.intro (int.of_nat 0),
+        refl,
+        refl,        
+      end,
+      cases' (finset_exists_stict_bound sf'g hnonempty hfin) with C hC,
+      apply exists.intro C,
+      simp [sf'g_def] at hC,
+      exact hC,
+    end,
+
+    cases' haux3 with C,
+
+    have hrw : ∀ n : ℤ,
+    f.func (g.func n) - f'.func (g'.func n) 
+    = 
+    (f.func (g.func n) - f'.func (g.func n))
+    + (f'.func(g.func n) - f'.func(g.func n - g'.func n) - f'.func (g'.func n))
+    + (f'.func (g.func n - g'.func n)) := by intro n; linarith,
+
+    apply exists.intro (Cff' + Cf' + C),
+    --intros x hx,
+
+    have haux4 : ∀ n : ℤ,
+    abs (f.func (g.func n) - f'.func (g'.func n)) < Cff' + Cf' + C := 
+    begin
+      intro n,
+
+      calc abs (f.func (g.func n) - f'.func (g'.func n))
+      = abs((f.func (g.func n) - f'.func (g.func n))
+      + (f'.func(g.func n) - f'.func(g.func n - g'.func n) - f'.func (g'.func n))
+      + (f'.func (g.func n - g'.func n))) : by rw hrw
+      ... ≤ abs (f.func (g.func n) - f'.func (g.func n))
+      + abs (f'.func(g.func n) - f'.func(g.func n - g'.func n) - f'.func (g'.func n))
+      + abs (f'.func (g.func n - g'.func n)) : _
+      ... < Cff' + Cf' + C : _,
+      {
+        exact abs_add_three (f.func (g.func n) - f'.func (g.func n))
+        (f'.func (g.func n) - f'.func (g.func n - g'.func n) - f'.func (g'.func n))
+        (f'.func (g.func n - g'.func n)),  
+      },
+      {
+        apply add_lt_add (add_lt_add (haux1 n) (haux2 n)) (h n),
+      }
+    end,
+
+    simp,
+    exact haux4,
   end
 
 end almost_homomorphisms
@@ -644,6 +880,20 @@ quotient almost_homomorphisms.setoid
       apply quotient.sound,
       exact almost_homomorphisms.mul_equiv_mul hf hg,
     end }
+
+@[instance] def has_zero : has_zero Eudoxus_Reals :=
+{ zero := ⟦0⟧ }
+
+lemma zero_add (x : Eudoxus_Reals) : 0 + x = x :=
+begin 
+  apply quotient.induction_on x,
+  intro x',
+  apply quotient.sound,
+  apply almost_homomorphisms.zero_add,
+end 
+
+@[instance] def has_one : has_one Eudoxus_Reals :=
+{ one := ⟦1⟧ }
 
 lemma add_commutes (a b : Eudoxus_Reals) : 
   a+b=b+a :=
