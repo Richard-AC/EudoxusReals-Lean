@@ -10,14 +10,11 @@ Reference: https://arxiv.org/pdf/math/0405454.pdf -/
   the set {f(m+n) - f(m) - f(n), n m : ℤ} is finite.
 
   Eudoxus Reals are then defined as equivalence classes of almost homomorphisms.
-  With f ~ g ↔ {f(n) - g(n), n : ℤ} is finite.
 
-  Therefore these are fonctions that grow almost linearily and the growth rate
-  represents a given real.
   For intuition, the Eudoxus real that represents the real number α will be the 
   equivalence class of (λ n : ℤ, ⌊α * n⌋).
 
-  Currently we show that the Eudoxus real form a ring. 
+  Currently we show that the Eudoxus real form a commutative ring. 
 
   Left to do:
     - Invertibility of non zero elements for *
@@ -957,6 +954,483 @@ lemma mul_equiv_mul {f f' g g' : almost_homs}
     exact haux4,
   end
 
+lemma mul_monotone (a b c :ℤ): 
+a ≥ 0 → b ≥ c → a * b ≥ a * c :=
+begin
+  intros ha hbc,
+  exact mul_le_mul_of_nonneg_left hbc ha,
+end  
+lemma mul_monotone_right (a b c :ℤ): 
+a ≥ 0 → b ≥ c → b * a ≥ c * a :=
+begin
+  intros ha hbc,
+  have hsimp1 : b * a = a * b := by linarith,
+  have hsimp2 : c * a = a * c := by linarith,
+  rw hsimp1 at ⊢,
+  rw hsimp2 at ⊢,
+  exact mul_monotone a b c ha hbc,
+end
+
+lemma mul_comm_aux (f g : almost_homs) : 
+∃ A B C : ℤ, (A ≥ 0 ∧ B ≥ 0 ∧ C ≥ 0) ∧ 
+∀ (p : ℤ), abs (p) * abs(f.func (g.func p) - g.func (f.func p)) < 2 * (abs p + (A * abs p + B) + 2) * C := 
+begin
+  cases' (almost_homomorphisms.lemma7 f) with Cf hCf,
+  cases' (almost_homomorphisms.lemma7 g) with Cg hCg,
+  set absCf := abs Cf with absCf_def,
+  set absCg := abs Cg with absCg_def,
+
+  have haux1 : ∀ p, abs (p * f.func (g.func p) - g.func p * f.func p) 
+  < (abs p + abs (g.func p ) + 2) * Cf := 
+    by intro p; exact  hCf p (g.func p),
+
+  have haux2 : ∀ p, abs (g.func p * f.func p - p * (g.func (f.func p)))
+  < (abs p + abs (f.func p) + 2) * Cg :=
+    begin
+      intro p,
+      have hsimp : abs (g.func p * f.func p - p * g.func (f.func p))
+        = abs (- (g.func p * f.func p - p * g.func (f.func p))):=
+        by exact eq.symm (abs_neg (g.func p * f.func p - p * g.func (f.func p))),
+
+      simp [hsimp],
+      rw (mul_comm (g.func p) (f.func p)),
+      apply hCg p (f.func p),
+    end,
+
+    have haux3 : ∀ p, 
+    abs (p * (f.func (g.func p)) - p * (g.func (f.func p)))
+    < (abs p + abs (g.func p ) + 2) * Cf  + (abs p + abs (f.func p) + 2) * Cg :=
+    begin
+      intro p,
+      calc abs (p * (f.func (g.func p)) - p * (g.func (f.func p)))
+    = abs ((p * f.func (g.func p) - g.func p * f.func p) 
+     + (g.func p * f.func p - p * g.func (f.func p))) : _
+    ... ≤ abs (p * f.func (g.func p) - g.func p * f.func p) 
+     + abs (g.func p * f.func p - p * g.func (f.func p)) : _
+    ... < (abs p + abs (g.func p ) + 2) * Cf  + (abs p + abs (f.func p) + 2) * Cg : _,
+    {
+      have hlinarith : p * (f.func (g.func p)) - p * (g.func (f.func p))
+       = p * (f.func (g.func p)) - g.func p * (f.func p) + (g.func p * (f.func p) - p * (g.func (f.func p)))
+       := by linarith,
+      rw hlinarith,
+    },
+    {exact abs_add (p * f.func (g.func p) - g.func p * f.func p) (g.func p * f.func p - p * g.func (f.func p)),},
+    {exact add_lt_add (hCf p (g.func p)) (haux2 p),}
+    end,
+
+    cases' (almost_homomorphisms.lemma8 f) with Af hAf,
+    cases' hAf with Bf hABf,
+    cases' (almost_homomorphisms.lemma8 g) with Ag hAg,
+    cases' hAg with Bg hABg,
+
+    have haux1'_aux : ∀ p, (abs p + abs (g.func p) + 2) * Cf ≤ (abs p + abs (g.func p) + 2) * absCf :=
+    begin
+      intro p,
+      have h1 : (abs p + abs (g.func p) + 2) ≥ 0 := 
+      begin
+        have h1_1 : abs p ≥ 0 := abs_nonneg p,
+        have h1_2 : abs (g.func p) ≥ 0 := abs_nonneg (g.func p),
+        linarith,
+      end,
+      apply (mul_monotone (abs p + abs (g.func p) + 2) absCf Cf h1 _),
+      exact le_abs_self Cf,
+    end,
+    have haux1' :  ∀ p, abs (p * f.func (g.func p) - g.func p * f.func p) < (abs p + abs (g.func p) + 2) * absCf := 
+    begin
+      intro p,
+      have haux1'_aux : (abs p + abs (g.func p) + 2) * Cf ≤ (abs p + abs (g.func p) + 2) * absCf :=
+      begin
+        have h1 : (abs p + abs (g.func p) + 2) ≥ 0 := 
+        begin
+          have h1_1 : abs p ≥ 0 := abs_nonneg p,
+          have h1_2 : abs (g.func p) ≥ 0 := abs_nonneg (g.func p),
+          linarith,
+        end,
+        apply (mul_monotone (abs p + abs (g.func p) + 2) absCf Cf h1 _),
+        exact le_abs_self Cf,
+      end,
+      apply lt_of_lt_of_le (haux1 p) haux1'_aux,
+    end,
+
+    have haux2' : ∀ (p : ℤ), abs (g.func p * f.func p - p * g.func (f.func p)) < (abs p + abs (f.func p) + 2) * absCg := 
+    begin
+      intro p,
+      have haux2'_aux : (abs p + abs (f.func p) + 2) * Cg ≤ (abs p + abs (f.func p) + 2) * absCg :=
+      begin
+        have h1 : (abs p + abs (f.func p) + 2) ≥ 0 := 
+        begin
+          have h1_1 : abs p ≥ 0 := abs_nonneg p,
+          have h1_2 : abs (f.func p) ≥ 0 := abs_nonneg (f.func p),
+          linarith,
+        end,
+        apply (mul_monotone (abs p + abs (f.func p) + 2) absCg Cg h1 _),
+        exact le_abs_self Cg,
+      end,
+      apply lt_of_lt_of_le (haux2 p) haux2'_aux,
+    end,
+
+    have haux4 :  ∀ p,
+    (abs p + abs (g.func p) + 2) * absCf 
+    ≤ (abs p + (Ag * abs p + Bg) + 2) * absCf := 
+    begin
+      intro p,
+      have h1 : (abs p + abs(g.func p) + 2) < (abs p + (Ag * abs p + Bg) + 2) :=
+      begin
+        have h1_1 : abs p + abs (g.func p) < abs p + (Ag * abs p + Bg) := 
+          by exact add_lt_add_left (hABg p) (abs p),
+        exact add_lt_add_right h1_1 2,
+      end,
+      have h : absCf * (abs p + (Ag * abs p + Bg) + 2) ≥ absCf * (abs p + abs (g.func p) + 2) :=
+      begin
+        apply mul_monotone absCf (abs p + (Ag * abs p + Bg) + 2) (abs p + abs(g.func p) + 2),
+        exact abs_nonneg Cf,
+        exact le_of_lt h1,
+      end,
+      linarith,
+    end,
+
+    have haux5 :  ∀ p,
+    (abs p + abs (f.func p) + 2) * absCg 
+    ≤ (abs p + (Af * abs p + Bf) + 2) * absCg := 
+    begin
+      intro p,
+      have h1 : (abs p + abs(f.func p) + 2) < (abs p + (Af * abs p + Bf) + 2) :=
+      begin
+        have h1_1 : abs p + abs (f.func p) < abs p + (Af * abs p + Bf) := 
+          by exact add_lt_add_left (hABf p) (abs p),
+        exact add_lt_add_right h1_1 2,
+      end,
+      have h : absCg * (abs p + (Af * abs p + Bf) + 2) ≥ absCg * (abs p + abs (f.func p) + 2) :=
+      begin
+        apply mul_monotone absCg (abs p + (Af * abs p + Bf) + 2) (abs p + abs(f.func p) + 2),
+        exact abs_nonneg Cg,
+        exact le_of_lt h1,
+      end,
+      linarith,
+    end,
+
+    have haux6 : ∀ (p : ℤ),
+    (abs p + abs (g.func p) + 2) * absCf + (abs p + abs (f.func p) + 2) * absCg
+    ≤ (abs p + (Ag * abs p + Bg) + 2) * absCf + (abs p + (Af * abs p + Bf) + 2) * absCg := 
+    begin
+      intro p,
+      apply add_le_add (haux4 p) (haux5 p),
+    end,
+
+    have haux3' : ∀ (p : ℤ), abs (p * f.func (g.func p) - p * g.func (f.func p)) 
+    < (abs p + abs (g.func p) + 2) * absCf + (abs p + abs (f.func p) + 2) * absCg := 
+    begin
+      intro p,
+      calc abs (p * (f.func (g.func p)) - p * (g.func (f.func p)))
+    = abs ((p * f.func (g.func p) - g.func p * f.func p) 
+     + (g.func p * f.func p - p * g.func (f.func p))) : _
+    ... ≤ abs (p * f.func (g.func p) - g.func p * f.func p) 
+     + abs (g.func p * f.func p - p * g.func (f.func p)) : _
+    ... < (abs p + abs (g.func p ) + 2) * absCf  + (abs p + abs (f.func p) + 2) * absCg : _,
+    {
+      have hlinarith : p * (f.func (g.func p)) - p * (g.func (f.func p))
+       = p * (f.func (g.func p)) - g.func p * (f.func p) + (g.func p * (f.func p) - p * (g.func (f.func p)))
+       := by linarith,
+      rw hlinarith,
+    },
+    {exact abs_add (p * f.func (g.func p) - g.func p * f.func p) (g.func p * f.func p - p * g.func (f.func p)),},
+    {exact add_lt_add (lt_of_lt_of_le (hCf p (g.func p)) (haux1'_aux p)) (haux2' p),},
+    end,
+
+    have haux4' : ∀ (p : ℤ), 
+    abs (p * f.func (g.func p) - p * g.func (f.func p)) 
+    < (abs p + (Ag * abs p + Bg) + 2) * absCf + (abs p + (Af * abs p + Bf) + 2) * absCg := 
+    begin
+      intro p,
+      apply lt_of_lt_of_le (haux3' p) (haux6 p),
+    end,
+
+    have haux5' : ∀ p,
+    abs (p * f.func (g.func p) - p * g.func (f.func p)) =
+    abs p * abs (f.func (g.func p) - g.func (f.func p)) := 
+    begin
+      intro p,
+      have h : (p * f.func (g.func p) - p * g.func (f.func p)) =
+      p * (f.func (g.func p) - g.func (f.func p)) := by linarith,
+      rw h,
+      exact abs_mul p (f.func (g.func p) - g.func (f.func p)),
+    end,
+
+    set A := max Af Ag with Adef,
+    set B := max Bf Bg with Bdef,
+    have hsimp1 : ∀ p, 
+    Af * abs p + Bf ≤ A * abs p + B := 
+    begin
+      intro p,
+      have h1 : abs p * A ≥ abs p * Af := 
+      begin
+        apply mul_monotone (abs p) A Af,
+        exact abs_nonneg p,
+        exact le_max_left Af Ag,
+      end,
+      have h1' : abs p * Af ≤ abs p * A := 
+        by apply ge.le h1,
+
+      have h2 : Bf ≤ B := by exact le_max_left Bf Bg,
+      have h3 : abs p * Af + Bf ≤ abs p * A + B := 
+        by apply add_le_add h1 h2,
+      
+      have hsimp1 : abs p * Af = Af * abs p := by linarith,
+      have hsimp2 : abs p * A = A * abs p := by linarith,
+      rw hsimp1 at h3,
+      rw hsimp2 at h3,
+      exact h3,      
+    end,
+
+    have hsimp2 : ∀ p, 
+    Ag * abs p + Bg ≤ A * abs p + B := 
+    begin
+      intro p,
+      have h1 : abs p * A ≥ abs p * Ag := 
+      begin
+        apply mul_monotone (abs p) A Ag,
+        exact abs_nonneg p,
+        exact le_max_right Af Ag,
+      end,
+      have h1' : abs p * Ag ≤ abs p * A := 
+        by apply ge.le h1,
+
+      have h2 : Bg ≤ B := by exact le_max_right Bf Bg,
+      have h3 : abs p * Ag + Bg ≤ abs p * A + B := 
+        by apply add_le_add h1 h2,
+      
+      have hsimp1 : abs p * Ag = Ag * abs p := by linarith,
+      have hsimp2 : abs p * A = A * abs p := by linarith,
+      rw hsimp1 at h3,
+      rw hsimp2 at h3,
+      exact h3, 
+    end,
+
+  set C := max absCf absCg with Cdef,
+  have hCpos : C ≥ 0 := 
+  begin
+    have haux : C ≥ absCf := by apply le_max_left absCf absCg,
+    have habsCfpos : absCf ≥ 0 := abs_nonneg Cf,
+    exact le_trans habsCfpos haux,
+  end,
+  set absA := abs A with absAdef,
+  set absB := abs B with absBdef,
+
+  have haux6': ∀ (p : ℤ), abs (p * f.func (g.func p) - p * g.func (f.func p)) 
+  < 2 * (abs p + (absA * abs p + absB) + 2) * C := 
+  begin
+    intro p,
+    calc  abs (p * f.func (g.func p) - p * g.func (f.func p)) 
+    < (abs p + (Ag * abs p + Bg) + 2) * absCf + (abs p + (Af * abs p + Bf) + 2) * absCg : by exact (haux4' p)
+    ... ≤ (abs p + (A * abs p + B) + 2) * absCf + (abs p + (A * abs p + B) + 2) * absCg : _
+    ... ≤ (abs p + (absA * abs p + absB) + 2) * absCf + (abs p + (absA * abs p + absB) + 2) * absCg : _
+    ... ≤ (abs p + (absA * abs p + absB) + 2) * C + (abs p + (absA * abs p + absB) + 2) * C : _
+    ... = 2 * (abs p + (absA * abs p + absB) + 2) * C : by linarith,
+    {
+      have h1 : absCf *  (abs p + (A * abs p + B) + 2) ≥ absCf * (abs p + (Ag * abs p + Bg) + 2) := 
+      begin
+        apply mul_monotone absCf (abs p + (A * abs p + B) + 2) (abs p + (Ag * abs p + Bg) + 2),
+        exact abs_nonneg Cf,
+        simp,
+        exact hsimp2 p,
+      end,
+      have h2 : absCg *  (abs p + (A * abs p + B) + 2) ≥ absCg * (abs p + (Af * abs p + Bf) + 2) := 
+      begin
+        apply mul_monotone absCg (abs p + (A * abs p + B) + 2) (abs p + (Af * abs p + Bf) + 2),
+        exact abs_nonneg Cg,
+        simp,
+        exact hsimp1 p,
+      end,
+      rw ge_iff_le at h1,
+      rw ge_iff_le at h2,
+      have h3 : absCf * (abs p + (Ag * abs p + Bg) + 2) + absCg * (abs p + (Af * abs p + Bf) + 2) ≤
+      absCf * (abs p + (A * abs p + B) + 2) + absCg * (abs p + (A * abs p + B) + 2) := 
+        by apply add_le_add h1 h2,
+      
+      have hs1 : absCf * (abs p + (Ag * abs p + Bg) + 2) = (abs p + (Ag * abs p + Bg) + 2) * absCf := by linarith,
+      have hs2 : absCg * (abs p + (Af * abs p + Bf) + 2) = (abs p + (Af * abs p + Bf) + 2) * absCg := by linarith,
+      have hs3 : absCf * (abs p + (A * abs p + B) + 2) = (abs p + (A * abs p + B) + 2) * absCf := by linarith,
+      have hs4 : absCg * (abs p + (A * abs p + B) + 2) =  (abs p + (A * abs p + B) + 2) * absCg := by linarith,
+      rw hs1 at h3,
+      rw hs2 at h3,
+      rw hs3 at h3,
+      rw hs4 at h3,
+      exact h3,
+    },
+    {
+      have h1 : (abs p + (absA * abs p + absB) + 2) * absCf ≥ (abs p + (A * abs p + B) + 2) * absCf := 
+      begin
+        have h1_1 : absA * abs p ≥ A * abs p := 
+          by apply mul_monotone_right (abs p) (absA) A (abs_nonneg p) (le_abs_self A),
+        have h1_2 : absB ≥ B :=
+          by exact le_abs_self B,
+        have h1_3 : absA * abs p  + absB ≥ A * abs p + B :=
+          by exact add_le_add h1_1 h1_2,
+        apply mul_monotone_right absCf (abs p + (absA * abs p + absB) + 2) (abs p + (A * abs p + B) + 2),
+        exact abs_nonneg Cf,
+        simp,
+        apply h1_3,
+      end,
+      have h2 : (abs p + (absA * abs p + absB) + 2) * absCg ≥ (abs p + (A * abs p + B) + 2) * absCg := 
+      begin
+        have h1_1 : absA * abs p ≥ A * abs p := 
+          by apply mul_monotone_right (abs p) (absA) A (abs_nonneg p) (le_abs_self A),
+        have h1_2 : absB ≥ B :=
+          by exact le_abs_self B,
+        have h1_3 : absA * abs p  + absB ≥ A * abs p + B :=
+          by exact add_le_add h1_1 h1_2,
+        apply mul_monotone_right absCg (abs p + (absA * abs p + absB) + 2) (abs p + (A * abs p + B) + 2),
+        exact abs_nonneg Cg,
+        simp,
+        apply h1_3,
+      end,
+      apply add_le_add h1 h2,
+    },
+    {
+      have hpos : abs p + (absA * abs p + absB) + 2 ≥ 0 :=
+      begin
+        have hpos1 : absA ≥ 0 := abs_nonneg A,
+        have hpos2 : absB ≥ 0 := abs_nonneg B,
+        have hpos3 : abs p ≥ 0 := abs_nonneg p,
+        have hpos4 : absA * abs p ≥ 0 := mul_nonneg hpos1 hpos3,
+        have hpos5 : absA * abs p + absB ≥ 0 := add_nonneg hpos4 hpos2,
+        have hpos6 : abs p + (absA * abs p + absB) ≥ 0 := add_nonneg hpos3 hpos5,
+        refine add_nonneg hpos6 _,
+        linarith,
+      end,
+      have h1 : (abs p + (absA * abs p + absB) + 2) * C ≥ (abs p + (absA * abs p + absB) + 2) * absCf := 
+      begin
+        apply mul_monotone  (abs p + (absA * abs p + absB) + 2) C absCf,
+        apply hpos,
+        apply le_max_left absCf absCg,
+      end,
+      have h2 : (abs p + (absA * abs p + absB) + 2) * C ≥ (abs p + (absA * abs p + absB) + 2) * absCg := 
+      begin
+        apply mul_monotone  (abs p + (absA * abs p + absB) + 2) C absCg,
+        apply hpos,
+        apply le_max_right absCf absCg,
+      end,
+      apply add_le_add h1 h2,
+    },
+  end,
+
+  have haux7': ∀ (p : ℤ), abs (p) * abs(f.func (g.func p) - g.func (f.func p)) 
+  < 2 * (abs p + (absA * abs p + absB) + 2) * C := 
+  begin
+    intro p,
+    have h := (eq.symm (haux5' p)),
+    rw h at ⊢,
+    exact (haux6' p),
+  end,
+
+  apply exists.intro absA,
+  apply exists.intro absB,
+  apply exists.intro C,
+  apply and.intro,
+  apply and.intro,
+  apply abs_nonneg A,
+  apply and.intro,
+  apply abs_nonneg B,
+  apply hCpos,
+  exact haux7',
+end
+
+lemma abs_nonnul_ge_1 (x : ℤ) : 
+x ≠ 0 → abs x ≥ 1 := 
+begin
+  intro hx,
+  have hpos : 0 < abs x :=
+  begin
+    exact abs_pos.mpr hx,
+  end,
+  exact hpos,
+end
+
+lemma mul_comm (f g : almost_homs) : 
+f * g ≈ g * f :=
+begin
+  simp [almost_homomorphisms.setoid_iff],
+  apply bounded_intset_is_finite,
+  cases' mul_comm_aux f g with A hrest,
+  cases' hrest with B hrest,
+  cases' hrest with C hrest,
+  have hABCpos : (A ≥ 0 ∧ B ≥ 0 ∧ C ≥ 0) := by apply and.elim_left hrest,
+  have hApos : A ≥ 0 := and.elim_left hABCpos,
+  have hBpos : B ≥ 0 := and.elim_left (and.elim_right hABCpos),
+  have hCpos : C ≥ 0 := and.elim_right (and.elim_right hABCpos),
+  have hbound :  ∀ (p : ℤ), abs (p) * abs(f.func (g.func p) - g.func (f.func p)) 
+  < 2 * (abs p + (A * abs p + B) + 2) * C := by apply and.elim_right hrest,
+  clear hrest,
+  have hbound_1 :  ∀ (p : ℤ), p ≠ 0 → abs(f.func (g.func p) - g.func (f.func p)) 
+  < 2 * (1 + (A + B) + 2) * C := 
+  begin
+    intros p hp,
+    have haux1 :  abs (p) * abs(f.func (g.func p) - g.func (f.func p)) 
+    < 2 * (abs p + (A * abs p + B) + 2) * C := hbound p,
+
+    have haux2 : abs p * abs(f.func (g.func p) - g.func (f.func p)) < abs p * (2 * (1 + (A + B) + 2) * C)
+    ↔ abs(f.func (g.func p) - g.func (f.func p)) < 2 * (1 + (A + B) + 2) * C :=
+    begin
+      apply (@mul_lt_mul_left _ _ (abs(f.func (g.func p) - g.func (f.func p))) (2 * (1 + (A + B) + 2) * C) (abs p) _),
+      apply (iff.elim_right abs_pos),
+      apply hp,
+    end,
+
+    apply (iff.elim_left haux2),
+
+    have habsp_one : abs p ≥ 1 := by apply abs_nonnul_ge_1 p hp,
+
+    have haux4 : 2 * (abs p + (A * abs p + B) + 2) * C ≤ abs p * (2 * (1 + (A + B) + 2) * C) :=
+    begin
+      have hsimp : abs p * (2 * (1 + (A + B) + 2) * C) = 2 * (abs p * 1 + (A * abs p + abs p * B) + abs p *2) * C :=
+        by linarith,
+      rw hsimp,
+      have h1 := mul_monotone_right B (abs p) 1 hBpos habsp_one,
+      simp at h1,
+      have h2 := mul_monotone_right 2 (abs p) 1 zero_le_two habsp_one,
+      simp at h2,
+      have h3 : A * abs p + B ≤ A * abs p + abs p * B := 
+      begin
+        refine add_le_add _ h1,
+        linarith,
+      end,
+      have h4 : (A * abs p + B) + 2 ≤ (A * abs p + abs p * B) + abs p * 2 := by exact add_le_add h3 h2,
+      have h5 : abs p + (A * abs p + B) + 2 ≤ abs p + (A * abs p + abs p * B) + abs p * 2 := by linarith,
+      have h6 : 2 * (abs p + (A * abs p + B) + 2) ≤ 2 * (abs p + (A * abs p + abs p * B) + abs p * 2) := by linarith,
+      have h7 := mul_monotone_right C (2 * (abs p + (A * abs p + abs p * B) + abs p * 2)) (2 * (abs p + (A * abs p + B) + 2)) hCpos h6,
+      simp at h7,
+      simp,
+      exact h7,      
+    end,
+
+    calc abs p * abs (f.func (g.func p) - g.func (f.func p)) 
+        < 2 * (abs p + (A * abs p + B) + 2) * C : hbound p
+    ... ≤ abs p * (2 * (1 + (A + B) + 2) * C) : haux4,
+  end,
+
+  set M0 := abs (f.func (g.func 0) - g.func (f.func 0)) with M0_def, 
+  set Mp := 2 * (1 + (A + B) + 2) * C with Mp_def,
+  set M := max (M0+1) Mp,
+  apply exists.intro M,
+  intros x,
+  simp,
+  intros n hx,
+  have cases_n : n = 0 ∨ n ≠ 0 := dec_em (n = 0),
+  cases cases_n,
+  {
+    simp [cases_n] at hx,
+    have hxM0 : abs x ≤ M0 := by simp [hx],
+    refine or.inl _,
+    calc abs x ≤ M0 : hxM0
+    ... < M0 + 1 : lt_add_one M0,
+  },
+  {
+    refine or.inr _,
+    simp [hx],
+    apply (hbound_1 n cases_n),
+  },
+end
+
 end almost_homomorphisms
 
 /-
@@ -1080,12 +1554,14 @@ a * b * c = a * (b * c) :=
     simp [almost_homomorphisms.setoid_iff],
   end
 
-lemma mul_monotone (a b c :ℤ): 
-a ≥ 0 → b ≥ c → a * b ≥ a * c :=
-begin
-  intros ha hbc,
-  exact mul_le_mul_of_nonneg_left hbc ha,
-end  
+lemma mul_comm (a b : Eudoxus_Reals) : 
+  a * b = b * a :=
+  begin
+    apply quotient.induction_on₂ a b,
+    intros f g,
+    apply quotient.sound,
+    apply almost_homomorphisms.mul_comm f g,
+end
 
 lemma one_mul (x : Eudoxus_Reals) :
 1 * x = x :=
@@ -1136,9 +1612,8 @@ begin
 end
 
 /- # Eudoxus Reals form a ring -/
-
 @[instance] def Eudoxus_Reals.ring:
-ring Eudoxus_Reals :=
+comm_ring Eudoxus_Reals :=
 {
   add := Eudoxus_Reals.has_add.add,
   add_assoc := add_assoc,
@@ -1156,6 +1631,7 @@ ring Eudoxus_Reals :=
   mul_one := mul_one,
   left_distrib := left_distrib,
   right_distrib := right_distrib,
+  mul_comm := mul_comm,
 }
 end Eudoxus_Reals
 
